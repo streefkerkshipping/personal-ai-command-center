@@ -10,6 +10,24 @@ in the loop.
 
 ---
 
+## What it delivers
+
+Running against my own admin, day to day — in plain terms:
+
+- **Weekly admin went from a scramble to a ~15-minute review.** One command regenerates the
+  dashboard; I read the top of the page and act, instead of hunting through documents.
+- **Nothing slips through.** Every bill lands with sender, amount, and due date already
+  extracted and colour-coded by urgency — I no longer discover an expired invoice by accident.
+- **One number, one place.** Shared household costs live in a single source-of-truth file, so
+  the split total is always right and never double-counted across notes.
+- **Capture from anywhere.** A photo of a receipt from my phone is filed and confirmed in
+  seconds, without opening a laptop.
+
+The transferable claim: *I built this for myself, it runs daily, and I can build a version of
+it for a business.*
+
+---
+
 ## The problem
 
 - Information gets lost between conversations, sessions, and devices.
@@ -29,26 +47,38 @@ a glance, what needs paying and how urgent it is — using a traffic-light syste
 ## Architecture
 
 ```
-[Telegram bot]  ── user sends text / photo / file
+[Telegram bot]  ── user sends text / photo / file   (capture from anywhere)
       │
       ▼
-[n8n Cloud — routing layer]
+[n8n Cloud — routing layer]            write-only to the intake folder
       │  If-node: text or binary?
       ├── text   ──► Claude (classify) ──► Create file from text
       └── binary ──► Upload file
       │
       ▼
-[Google Drive — /raw/Inbox  (Markdown / files)]
+[Google Drive — intake landing zone]   /raw/Inbox  (mobile capture + sync)
+      │
+      │  bridge pulls new intake down to the local machine
+      ▼
+[Local runtime — ~/AI-OS on my Mac]    the system of record (Obsidian + Claude Code)
       │
       ▼
-[Supervised processing]  ── reads inbox, routes sources, updates the knowledge base
-      │                     (Claude reads photos natively here — no separate OCR)
+[Processing]  ── scheduled (launchd) + on demand; routes sources, updates the base
+      │           (Claude reads photos natively here — no separate OCR)
       ├──► knowledge pages (notes, concepts, people, projects)
-      └──► admin dashboard (payments, deadlines, shared costs)
+      ├──► admin dashboard (payments, deadlines, shared costs)
+      └──► consolidation pass (cross-links, dedupe, index)
       │
       ▼
 [Telegram — confirmation back to user]
 ```
+
+> **Local-first (since July 2026).** The runtime is the local `~/AI-OS/` folder on my Mac —
+> Obsidian and Claude Code both operate directly on the same Markdown files. Google Drive is
+> no longer the runtime; it's the mobile-capture landing zone and backup. A small bridge pulls
+> new intake from Drive down to the local machine, where all processing happens. This removed
+> the reliability problems of running automation against a synced cloud folder and made
+> scheduled, unattended runs possible.
 
 ### Tool roles
 
@@ -57,8 +87,10 @@ a glance, what needs paying and how urgent it is — using a traffic-light syste
 | **Telegram** | Mobile input interface. Send text, photos, or files from anywhere; receive confirmations back. |
 | **n8n** | Automation routing layer. Receives the webhook, decides text vs binary, writes to storage, sends confirmation. No business logic — pure routing. |
 | **Claude (Anthropic)** | Intake classifier. Reads content, assigns a type, decides the destination, writes structured Markdown. Proposes; does not execute. |
-| **Google Drive** | File storage. A single intake folder is the landing zone. n8n writes here; the processing layer reads from here. |
-| **Supervised processing** | Reads the inbox, routes each item to the right place, creates/updates knowledge and admin pages. Runs on demand (human-in-the-loop). |
+| **Google Drive** | Intake landing zone. n8n writes new captures to a single inbox folder; a bridge pulls them down to the local machine. No longer the runtime — legacy/backup + mobile sync. |
+| **Local runtime (`~/AI-OS`)** | The system of record. Obsidian and Claude Code operate directly on local Markdown; all processing and knowledge live here. |
+| **launchd (macOS)** | Scheduler. Runs inbox processing and the consolidation pass on a fixed cadence, unattended, with a kill-switch to pause everything. |
+| **Processing (Claude Code)** | Reads the inbox, routes each item to the right place, creates/updates knowledge and admin pages. Runs on a schedule (launchd) and on demand — human-in-the-loop. |
 | **Markdown / Obsidian** | The knowledge base and its viewer. All knowledge lives as Markdown files. |
 
 ---
@@ -73,9 +105,10 @@ a glance, what needs paying and how urgent it is — using a traffic-light syste
 - ✅ Admin dashboard with a traffic-light system for payments
 - ✅ Telegram confirmation after each intake
 - ✅ Human-in-the-loop: the AI classifies and proposes; a human approves
+- ✅ Scheduled, unattended inbox processing (launchd) with a kill-switch
+- ✅ Nightly consolidation pass ("Daily Brain Rewire") — links, dedupe, index
 - 🔄 Voice notes (transcription) — planned
 - 🔄 Ask questions against the knowledge base via Telegram — planned
-- 🔄 Nightly consolidation pass ("Daily Brain Rewire") — links, dedupe, index — planned
 - 🔄 Calendar integration (read-only first, then reminders) — planned
 
 ---
@@ -153,7 +186,8 @@ cross-references get richer over time, so a good answer is already half-written 
 question is asked. The approach follows the idea of an LLM-maintained wiki — the model
 does the bookkeeping a human would eventually abandon.
 
-*Status: designed, not yet automated.*
+*Status: automated — the consolidation pass and inbox processing now run unattended on a
+schedule (launchd), and on demand.*
 
 ---
 
@@ -200,18 +234,26 @@ workflow is sanitised (tokens and IDs replaced with placeholders) before publish
 
 ## Status
 
-**v2 — text intake live; photo/file intake routed and stored; admin dashboard in use.**
-Known issues being worked on: filtering empty messages, and standardising the generated
-Markdown formatting.
+**v3 — local-first, with scheduled automation.** Text and photo/file intake live; admin
+dashboard in daily use; inbox processing and the consolidation pass now run unattended on a
+schedule (launchd), with a kill-switch. Runtime moved from the synced cloud folder to a
+local `~/AI-OS/` on the Mac (July 2026). Known issues being worked on: filtering empty
+messages, and standardising the generated Markdown formatting.
 
 ## Roadmap
+
+**Done since v2**
+
+- ✅ Scheduled, automated inbox processing (launchd).
+- ✅ Automated consolidation pass (links, dedupe, index).
+- ✅ Local-first runtime migration off the synced cloud folder.
+
+**Next**
 
 1. Filter empty messages (stability fix).
 2. Voice notes (transcription).
 3. Knowledge-base Q&A via Telegram.
 4. Calendar integration (read-only first, then reminders).
-5. Scheduled, automated inbox processing.
-6. Automate the nightly consolidation pass (links, dedupe, index).
 
 ## Lessons learned
 
