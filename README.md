@@ -1,5 +1,11 @@
 # Personal AI Command Center — Telegram Intake Agent
 
+> **Status (September 2026): retired.** The Telegram route ran from late June to the end of
+> July 2026. I switched it off because capturing through Telegram was clumsy for me day to
+> day. Photos and notes now go from my phone into a Drive folder, and a small local script
+> moves them into the knowledge base, where the same classify → store → act steps still run.
+> This repo stays online as the first version, and as a record of what I learned building it.
+
 > A personal automation that captures input from Telegram, classifies it with AI, and
 > stores it as structured Markdown in a knowledge base — then turns incoming admin
 > (invoices, bills, deadlines) into a live, colour-coded action dashboard.
